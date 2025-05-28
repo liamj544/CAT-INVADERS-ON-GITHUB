@@ -13,52 +13,44 @@
 # limitations under the License.
 
 import io
-import av
-import re
 import itertools
+import re
+from typing import Callable, Dict, List, Literal, Optional, TypedDict, Union
+
+import av
 import numpy as np
 import numpy.typing as npt
-from typing import Dict, List, Union, Literal, TypedDict, Callable, Optional
-
 import torch
 import torchvision
-from torch.nn.utils.rnn import pad_sequence
-
 from megatron.core import parallel_state
 from megatron.energon import batch_list, batch_pad_stack
 from megatron.energon.task_encoder.base import stateless
+from torch.nn.utils.rnn import pad_sequence
+from transformers import LlavaNextImageProcessor
 
+from nemo.collections.asr.parts.preprocessing.features import WaveformFeaturizer
+from nemo.collections.asr.parts.preprocessing.perturb import process_augmentations as audio_process_augmentations
+from nemo.collections.asr.parts.preprocessing.segment import AudioSegment
 from nemo.collections.avlm.data.energon.avlm_sample_config import (
     AudioSize,
-    VideoSize,
-    ImageSize,
-    MediaDict,
     AVLMEnergonInterleavedSample,
     AVLMEnergonQASample,
-    AVLMSample,
-    PackedAVLMSample,
     AVLMRawBatch,
-    PackedAVLMRawBatch,
+    AVLMSample,
     AVLMSampleConfig,
+    ImageSize,
+    MediaDict,
+    PackedAVLMRawBatch,
+    PackedAVLMSample,
+    VideoSize,
 )
-
 from nemo.collections.avlm.data.energon.calculate_media_seq_length import (
     calculate_encoded_audio_seq_length,
     calculate_encoded_image_seq_length,
 )
-
-from nemo.collections.multimodal.data.energon.sample_encoder import (
-    SampleEncoder,
-    BaseSampleEncoder,
-    VQASampleEncoder,
-)
+from nemo.collections.multimodal.data.energon.sample_encoder import BaseSampleEncoder, SampleEncoder, VQASampleEncoder
 from nemo.collections.multimodal.data.energon.task_encoder import MultiModalTaskEncoder
 from nemo.collections.vlm.neva.data.sequence_packing import predict_seq_len_with_padding
-from nemo.collections.asr.parts.preprocessing.segment import AudioSegment
-from nemo.collections.asr.parts.preprocessing.features import WaveformFeaturizer
-from nemo.collections.asr.parts.preprocessing.perturb import process_augmentations as audio_process_augmentations
-from transformers import LlavaNextImageProcessor
-
 from nemo.utils import logging
 
 
@@ -350,12 +342,16 @@ class AVLMSampleEncoder(BaseSampleEncoder):
                 if image.max() > 1:
                     image = image / 255.0
 
-            # if image_processor is LlavaNextImageProcessor, the output of preprocess is a tensor of shape 
+            # if image_processor is LlavaNextImageProcessor, the output of preprocess is a tensor of shape
             # [1 - batch_size, 5 - patches, C, H, W], hence we only take the first element
             if isinstance(self.image_processor, LlavaNextImageProcessor):
-                processed_image = self.image_processor.preprocess(image, return_tensors='pt', do_rescale=False)['pixel_values'][0]
+                processed_image = self.image_processor.preprocess(image, return_tensors='pt', do_rescale=False)[
+                    'pixel_values'
+                ][0]
             else:
-                processed_image = self.image_processor.preprocess(image, return_tensors='pt', do_rescale=False)['pixel_values']
+                processed_image = self.image_processor.preprocess(image, return_tensors='pt', do_rescale=False)[
+                    'pixel_values'
+                ]
 
             return (
                 processed_image,
@@ -497,7 +493,9 @@ class AVLMSampleEncoderInterleaved(AVLMSampleEncoder):
                         img_width=self.multimodal_sample_config.image_encoder_config['img_width'],
                         img_height=self.multimodal_sample_config.image_encoder_config['img_height'],
                         patch_size=self.multimodal_sample_config.image_encoder_config['patch_size'],
-                        projection_downsample_factor=self.multimodal_sample_config.image_encoder_config['projection_downsample_factor'],
+                        projection_downsample_factor=self.multimodal_sample_config.image_encoder_config[
+                            'projection_downsample_factor'
+                        ],
                     )
                     tokenized_chunks.extend([self.image_token.token_id] * encoded_image_seq_length)
 
@@ -712,7 +710,9 @@ class AVLMSampleEncoderQA(AVLMSampleEncoder, VQASampleEncoder):
                     img_width=self.multimodal_sample_config.image_encoder_config['img_width'],
                     img_height=self.multimodal_sample_config.image_encoder_config['img_height'],
                     patch_size=self.multimodal_sample_config.image_encoder_config['patch_size'],
-                    projection_downsample_factor=self.multimodal_sample_config.image_encoder_config['projection_downsample_factor'],
+                    projection_downsample_factor=self.multimodal_sample_config.image_encoder_config[
+                        'projection_downsample_factor'
+                    ],
                 )
                 tokenized_chunks.extend([self.image_token.token_id] * encoded_image_seq_length)
 
